@@ -16,4 +16,7 @@ void turnRight(int seconds, int speed);
 void turnLeft(int seconds, int speed);
 void fullStop();
 
+//Ultra sonic
+int getDistance();
+
 #endif // MOVEMENT_H
