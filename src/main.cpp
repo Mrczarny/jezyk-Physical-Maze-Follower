@@ -31,7 +31,7 @@ void loop() {
   //  rotateRight(2, 80);
   //  fullStop();
 
-  int distance = getDistance();
-  delay(1000);
+ int test = test_distance();
+ delay(1000);
 }
 
