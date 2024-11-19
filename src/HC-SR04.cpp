@@ -26,10 +26,31 @@ int getDistance(){
         Serial.println(distance); 
     }
     return distance;
+} 
+int test_distance() {
+    // Define the maximum number of attempts to obtain valid readings
+    const int MAX_ATTEMPTS = 3;
+    
+    // Define the acceptable variance between two distance readings
+    const int MAX_VARIANCE = 5;  // More flexible variance threshold
+
+    // Loop to attempt readings up to the maximum number of attempts
+    for (int attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+        // Measure the distance twice
+        int distance1 = getDistance(); 
+        int distance2 = getDistance(); 
+
+        // Check if both readings are valid and within the acceptable variance
+        if (distance1 >= 0 && distance2 >= 0 && abs(distance1 - distance2) <= MAX_VARIANCE) {
+            // If readings are valid and consistent, print success and return 1
+            Serial.println("Correct");
+            return 1;  // Valid and consistent readings
+        }
+    }
+
+    // If all attempts fail, print failure and return 0
+    Serial.println("Fail");
+    return 0;  // Failed after multiple attempts
 }
 
-int getRealDistance(){
-    int distance1 = getDistance();
-    int distance2 = getDistance();
-    
-}
+
