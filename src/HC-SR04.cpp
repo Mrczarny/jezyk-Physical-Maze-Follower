@@ -15,11 +15,11 @@ int getDistance(){
     digitalWrite(TRIGER, HIGH); //sends power to the sensor
     delayMicroseconds(10);      
     digitalWrite(TRIGER, LOW);  //sets back to low
-
     time = pulseIn(ECHO, HIGH); //will return how long it took the sensor to recive a wave
     //if 0 then error occurd
     if(time==0){
         Serial.println("Error getting distance");
+        return 0;
     }else{
         distance = (time * 0.0343) / 2; //distance = time*speed of sound per milisecond / 2 (travels to object and back) 
         Serial.println("Distance");
@@ -28,3 +28,11 @@ int getDistance(){
     return distance;
 }
 
+// int getRealDistance(){
+//     int distance1 = getDistance();
+//     int distance2 = getDistance();
+//     if(distance1 - distance2 > 2 | distance1 - distance2 < -2){
+//         return 0;
+//     }
+//     return 1;
+// }

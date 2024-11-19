@@ -18,5 +18,6 @@ void fullStop();
 
 //Ultra sonic
 int getDistance();
+int getRealDistance();
 
 #endif // MOVEMENT_H
