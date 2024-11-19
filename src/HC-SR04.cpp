@@ -28,11 +28,8 @@ int getDistance(){
     return distance;
 }
 
-// int getRealDistance(){
-//     int distance1 = getDistance();
-//     int distance2 = getDistance();
-//     if(distance1 - distance2 > 2 | distance1 - distance2 < -2){
-//         return 0;
-//     }
-//     return 1;
-// }
+int getRealDistance(){
+    int distance1 = getDistance();
+    int distance2 = getDistance();
+    
+}
