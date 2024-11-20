@@ -2,20 +2,20 @@
 #include "functions.h"
 
 //Ultra sonic sensor
-#define TRIGER 3
-#define ECHO 2
+#define TRIGER_PIN 7
+#define ECHO_PIN 4
 
 
 //gets the distance from the ultra sonic sensor
 int getDistance(){
     int time = 0;
     int distance = 0;
-    digitalWrite(TRIGER, LOW); 
+    digitalWrite(TRIGER_PIN, LOW); 
     delayMicroseconds(2);
-    digitalWrite(TRIGER, HIGH); //sends power to the sensor
+    digitalWrite(TRIGER_PIN, HIGH); //sends power to the sensor
     delayMicroseconds(10);      
-    digitalWrite(TRIGER, LOW);  //sets back to low
-    time = pulseIn(ECHO, HIGH); //will return how long it took the sensor to recive a wave
+    digitalWrite(TRIGER_PIN, LOW);  //sets back to low
+    time = pulseIn(ECHO_PIN, HIGH); //will return how long it took the sensor to recive a wave
     //if 0 then error occurd
     if(time==0){
         Serial.println("Error getting distance");
@@ -44,7 +44,7 @@ int test_distance() {
         if (distance1 >= 0 && distance2 >= 0 && abs(distance1 - distance2) <= MAX_VARIANCE) {
             // If readings are valid and consistent, print success and return 1
             Serial.println("Correct");
-            return 1;  // Valid and consistent readings
+            return distance1;  // Valid and consistent readings
         }
     }
 

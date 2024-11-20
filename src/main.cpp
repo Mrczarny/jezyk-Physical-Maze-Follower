@@ -11,6 +11,11 @@
 //Ultra sonic sensor
 #define TRIGER 3
 #define ECHO 2
+//Servo motor
+#define SERVOPIN 8
+const int OPENGRIPPER = 2;
+const int CLOSEGRIPPER = 1.5;
+void servo(int postition);
 
 void setup() {
   Serial.begin(9600);
@@ -20,6 +25,7 @@ void setup() {
   pinMode(MOTOR_B2, OUTPUT);
   pinMode(TRIGER, OUTPUT);
   pinMode(ECHO, INPUT);
+  pinMode(SERVOPIN, INPUT);
 }
 
 void loop() {
@@ -31,7 +37,22 @@ void loop() {
   //  rotateRight(2, 80);
   //  fullStop();
 
- int test = test_distance();
- delay(1000);
+  //int test = test_distance();
+  //delay(1000);
+  //move(80);
+ 
+  servo(CLOSEGRIPPER);
+  delay(3000);
+  servo(OPENGRIPPER);
+  delay(3000);
 }
 
+void servo(int position){
+  for(int x=0; x < 40; x++){
+    Serial.println(x);
+    digitalWrite(SERVOPIN, HIGH); 
+    delay(position);
+    digitalWrite(SERVOPIN, LOW);
+    delay(20);
+  }
+}

@@ -31,8 +31,8 @@ void moveForward(int seconds, int speed){
   int power = calculatePower(speed);
   analogWrite(MOTOR_A2, power);
   analogWrite(MOTOR_B1, power+5);
-  delay(seconds * 1000);
-  setMotorsOff();
+  //delay(seconds * 1000);
+  //setMotorsOff();
 }
 
 //Takes the time it must run for and the speed to run at IN PERCENTAGE
@@ -98,4 +98,19 @@ void fullStop(){
   analogWrite(MOTOR_B1, 0);
   analogWrite(MOTOR_A1, 0);
   delay(10000);
+}
+
+void move(int speed){
+  while(test_distance() > 30){
+    moveForward(2, speed);
+  }
+  if(test_distance() < 30){
+    turnRight(1, speed);
+    moveForward(1, speed);
+    delay(3000);
+    turnLeft(1.5, speed);
+    moveForward(1, speed);
+    delay(3000);
+    turnRight(1, speed);
+  }
 }
