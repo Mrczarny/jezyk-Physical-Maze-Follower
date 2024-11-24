@@ -28,6 +28,7 @@ int getDistance(){
     }
     return distance;
 } 
+
 int test_distance() {
     if(millis() > time){
         // Define the maximum number of attempts to obtain valid readings
