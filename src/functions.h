@@ -16,6 +16,8 @@ void turnRight(int seconds, int speed);
 void turnLeft(int seconds, int speed);
 void fullStop();
 void move(int speed);
+void test();
+void test2();
 
 //Ultra sonic
 int getDistance();

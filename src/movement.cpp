@@ -1,11 +1,14 @@
 #include <Arduino.h>
 #include "functions.h"
+#include <motors.h>
 
 //DEFINE
 #define MOTOR_A1 11 //left motor backwords
-#define MOTOR_A2 10 //left motor forward
-#define MOTOR_B1 6  //right motor forward
-#define MOTOR_B2 5  //right motor backwords
+#define MOTOR_A2 13 //left motor forward
+#define MOTOR_B1 9  //right motor forward
+#define MOTOR_B2 12  //right motor backwords
+
+// Motors motor(11, 13, 12, 9);
 
 ////////IMPORTANT
 ////////FOR MOVEMENT USE SPEED IN PERCENTAGE!!!!!!!
@@ -105,6 +108,7 @@ void move(int speed){
     moveForward(2, speed);
   }
   if(test_distance() < 30){
+    fullStop();
     turnRight(1, speed);
     moveForward(1, speed);
     delay(3000);
@@ -114,3 +118,4 @@ void move(int speed){
     turnRight(1, speed);
   }
 }
+
