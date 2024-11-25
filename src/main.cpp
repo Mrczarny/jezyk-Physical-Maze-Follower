@@ -47,12 +47,13 @@ void loop() {
   delay(3000);
 }
 
+unsigned long time2 = 0;
 void servo(int position){
-  for(int x=0; x < 40; x++){
-    Serial.println(x);
+  if (millis() > time2){ 
     digitalWrite(SERVOPIN, HIGH); 
     delay(position);
     digitalWrite(SERVOPIN, LOW);
-    delay(20);
+    time2 = millis() + 20; 
   }
 }
+ 
