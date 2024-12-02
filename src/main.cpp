@@ -1,107 +1,112 @@
 #include <Arduino.h>
-#include "functions.h" //For the movement fucntions
 #include <motors.h>
+#include <sonar.h>
+#include <rotation.h>
 
-//DEFINE
-//movement definitions
-#define MOTOR_A1 11 //left motor backwords  speed 0/255
-#define MOTOR_A2 13 //left motor forward   direction 1/0
-#define MOTOR_B1 9  //right motor forward   speed 0/255
-#define MOTOR_B2 12  //right motor backwords  direction 1/0
-//Ultra sonic sensor
-#define TRIGER 3
-#define ECHO 2
+
+//left motor backwords  speed 0/255 PIN 11 A1
+//left motor forward   direction 1/0 PIN 2 A2
+//right motor forward   speed 0/255 PIN 9 B1
+//right motor backwords  direction 1/0 12 B2
+
+// //Ultra sonic sensor1
+#define TRIGER1 7
+#define ECHO1 10
+
+// //Ultra sonic sensor2
+#define TRIGER2 5
+#define ECHO2 6
+
 //Servo motor
 #define SERVOPIN 8
-
-Motors motor(11,13,9,12);
-
 const int OPENGRIPPER = 2;
 const int CLOSEGRIPPER = 1.5;
-void servo(int postition);
+
+Rotation rotation(3, 2);
+Motors motor(11,13,9,12);
+
+// //Servo motor
+Sonar s1(TRIGER1, ECHO1);
+Sonar s2(TRIGER2, ECHO2);
+
+// maze 
+int distanceFront = 0;
+int distanceRight = 0;
+
+unsigned int time2;
+
+//functions
+void distances();
+void gapChecker();
+void maze();
 
 void setup() {
   Serial.begin(9600);
-  // pinMode(MOTOR_A1, OUTPUT);
-  // pinMode(MOTOR_A2, OUTPUT);
-  // pinMode(MOTOR_B1, OUTPUT);
-  // pinMode(MOTOR_B2, OUTPUT);
-  pinMode(TRIGER, OUTPUT);
-  pinMode(ECHO, INPUT);
-  pinMode(SERVOPIN, INPUT);
-    motor.setup(
-    0, 0, 255, 255
-  );
+  //Movement
+  motor.setup(0, 0, 255, 255);
+  rotation.setup(&motor, 0, 0);
 }
 
 
 void loop() {
-  //  moveForward(8, 80);
-  //  moveBackwords(8, 80);
-  //  turnLeft(4, 80);
-  //  turnRight(6.5, 80);
-  //  rotateLeft(3, 80);
-  //  rotateRight(2, 80);
-  //  fullStop();
-
-  //int test = test_distance();
-  //delay(1000);
-  //move(80);
- //test();
- test2();
+  distances();
+  gapChecker();
+  maze();
 }
 
-void servo(int position){
-  for(int x=0; x < 40; x++){
-    Serial.println(x);
-    digitalWrite(SERVOPIN, HIGH); 
-    delay(position);
-    digitalWrite(SERVOPIN, LOW);
-    delay(20);
-  }
+
+
+
+//Constanly get updated values of sonar distance
+void distances(){
+        distanceFront = s1.getDistance();
+        distanceRight = s2.getDistance();
+        //Serial.println(distanceFront);
+        Serial.print("New distance");
+        //Serial.println(distanceRight);
+        
 }
 
-void test(){
-  while (test_distance() > 15)
-  {
-    motor.setLeftMotorSpeed(255);
-    motor.setRightMotorSpeed(255);
+void maze(){
+  while(distanceFront > 11){
     motor.forward();
+    distances();
+    //record where bot has gone
+    Serial.println("Forward");
+    Serial.println(distanceFront);
   }
-  if(test_distance() < 15){
-    motor.setLeftMotorSpeed(255);
-    motor.setRightMotorSpeed(255);
-    Serial.println("START");
-    motor.right();
-    Serial.println("RIGHT");
-    delay(500);
-    motor.stop();
-    motor.forward();
-    Serial.println("FORWARD");
-    delay(1000);
-    motor.stop();
-    motor.left();
-    Serial.println("LEFT");
-    delay(500);
-    motor.stop();
-    motor.forward();
-    Serial.println("FORWARD");
-    delay(1000);
-    motor.stop();
-    motor.right();
-    Serial.println("RIGHT");
-    delay(500);
-    motor.stop();
-    Serial.println("END");
+  if(distanceFront < 10){
+    Serial.println("Obstacle in way");
+    Serial.println(distanceFront);
+    //check if right side is open
+    if(distanceRight > 5){
+      //record robot can go right
+      Serial.println("Gap to right");
+    }
+    //turn robot left
+    //rotation.turnDegreesLeft(90);
+    //motor.stop();
+    //check if left side is open
+    if(distanceFront > 5){
+      //record gap to left
+      Serial.println("Gap to left"); 
+    }
   }
-  
+  distances();
+    
 }
 
-  
-void test2(){
-  //motor.setLeftMotorSpeed(255);
-  //  motor.setRightMotorSpeed(255);
-  
-    motor.zeroLeft();
-    delay(1000);
+
+
+unsigned int timeGapChecker;
+void gapChecker(){
+    if(millis() > timeGapChecker){
+      // Serial.print("distance");
+      // Serial.println(distanceRight);
+        if(distanceRight > 9){
+            //record that there is a opening
+            Serial.println("Opening to the right");
+        }
+        timeGapChecker +=250;
+    }
 }
