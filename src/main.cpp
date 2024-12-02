@@ -49,22 +49,29 @@ void setup() {
 
 
 void loop() {
-  distances();
-  gapChecker();
-  maze();
+  //  moveForward(8, 80);
+  //  moveBackwords(8, 80);
+  //  turnLeft(4, 80);
+  //  turnRight(6.5, 80);
+  //  rotateLeft(3, 80);
+  //  rotateRight(2, 80);
+  //  fullStop();
+
+  //int test = test_distance();
+  //delay(1000);
+  //move(80);
+ //test();
+ test2();
 }
 
-
-
-
-//Constanly get updated values of sonar distance
-void distances(){
-        distanceFront = s1.getDistance();
-        distanceRight = s2.getDistance();
-        //Serial.println(distanceFront);
-        Serial.print("New distance");
-        //Serial.println(distanceRight);
-        
+unsigned long time2 = 0;
+void servo(int position){
+  if (millis() > time2){ 
+    digitalWrite(SERVOPIN, HIGH); 
+    delay(position);
+    digitalWrite(SERVOPIN, LOW);
+    delay(20);
+  }
 }
 
 void maze(){
