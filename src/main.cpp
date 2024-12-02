@@ -22,8 +22,8 @@
 const int OPENGRIPPER = 2;
 const int CLOSEGRIPPER = 1.5;
 
-Rotation rotation(3, 2);
-Motors motor(11,13,9,12);
+Rotation rotation(4, 3);
+Motors motor(11,2,9,12);
 
 // //Servo motor
 Sonar s1(TRIGER1, ECHO1);
@@ -40,6 +40,7 @@ void distances();
 void gapChecker();
 void maze();
 
+
 void setup() {
   Serial.begin(9600);
   //Movement
@@ -49,30 +50,18 @@ void setup() {
 
 
 void loop() {
-  //  moveForward(8, 80);
-  //  moveBackwords(8, 80);
-  //  turnLeft(4, 80);
-  //  turnRight(6.5, 80);
-  //  rotateLeft(3, 80);
-  //  rotateRight(2, 80);
-  //  fullStop();
-
-  //int test = test_distance();
-  //delay(1000);
-  //move(80);
- //test();
- test2();
+  maze();
 }
 
-unsigned long time2 = 0;
-void servo(int position){
-  if (millis() > time2){ 
-    digitalWrite(SERVOPIN, HIGH); 
-    delay(position);
-    digitalWrite(SERVOPIN, LOW);
-    delay(20);
-  }
-}
+// unsigned long time2 = 0;
+// void servo(int position){
+//   if (millis() > time2){ 
+//     digitalWrite(SERVOPIN, HIGH); 
+//     delay(position);
+//     digitalWrite(SERVOPIN, LOW);
+//     delay(20);
+//   }
+// }
 
 void maze(){
   while(distanceFront > 11){
