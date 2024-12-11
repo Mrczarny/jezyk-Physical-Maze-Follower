@@ -10,7 +10,7 @@
 //right motor forward   speed 0/255 PIN 9 B1
 //right motor backwords  direction 1/0 12 B2
 
-Rotation rotation(4, 3);
+Rotation rotation(3, 2);
 Motors motor(11,A1,9,A0);
 
 //Ultra sonic sensor1 FRONT
@@ -23,7 +23,7 @@ Motors motor(11,A1,9,A0);
 
 //Ultra sonic sensor2 LEFT
 #define TRIGER3 12
-#define ECHO3 2
+#define ECHO3 4
 
 //Servo motor
 #define SERVOPIN 8
@@ -56,8 +56,8 @@ void setup() {
   //Movement
   motor.setup(0, 0, 255, 255);
   rotation.setup(&motor, 0, 0);
-  motor.setLeftMotorSpeed(255);
-  motor.setRightMotorSpeed(255);
+  // motor.setLeftMotorSpeed(170);
+  // motor.setRightMotorSpeed(255);
 }
 
 
@@ -66,20 +66,23 @@ void loop() {
   gapChecker();
   maze();
   hitWallFront();
-
+  //test();
+  //delay(1000);
 }
 
 void maze(){
   //Open area in front
-  while(distanceFront > 11){
+  while(distanceFront > 14){
     motor.forward();
     distances();
+    //Serial.println("Forward");
     //record where bot has gone
   }
   //Wall in front
-  if(distanceFront < 7){
+  if(distanceFront < 13){
     motor.stop();
-    Serial.println("Obstacle in way");
+    // delay(400);
+    //Serial.println("Stop");
     hitWallFront();
     deadend();
   }
@@ -89,11 +92,9 @@ void maze(){
 //if robot is 7cm away from wall it must move back in order to rotate properly
 void hitWallFront(){
   distances();
-  if(distanceFront < 7 && distanceFront > 0){
-    Serial.println("wall");
-    Serial.println(distanceFront);
-    rotation.moveBackwardFor(3);
-    hitWallFront();
+  while(distanceFront < 8 && distanceFront > 0){
+    rotation.moveBackwardFor(2);
+    distances();
   }
 }
 
@@ -101,30 +102,40 @@ void hitWallFront(){
 void deadend(){
   distances();
   hitWallFront();
-  //check if right side is open and left side is closed
-  if(distanceRight > 8 && distanceLeft < 8){
-    rotation.turnDegreesRight(80);
+  if(distanceFront < 14){
+    //check if right side is open and left side is closed
+    if(distanceRight > 13 && distanceLeft < 13){
+      rotation.turnDegreesRight(90);
+      Serial.println("Turn right");
+    }
+    //checks if left side is open and right closed
+    else if(distanceRight < 13 && distanceLeft > 13){
+      rotation.turnDegreesLeft(90);
+      Serial.println("Turn left");
+    }
+    //if both sides are closed
+    else if(distanceRight < 13 && distanceLeft < 13){
+      distances();
+      Serial.println("Go back Dead end");
+      rotation.turnDegreesLeft(180);
+    }
+    //if both sides open
+    else if(distanceRight > 13 && distanceLeft > 13){
+      rotation.turnDegreesLeft(90);
+      Serial.println("Turn left open both sides");
+    }
   }
-  //checks if left side is open and right closed
-  else if(distanceRight < 8 && distanceLeft > 8){
-    rotation.turnDegreesLeft(90);
-  }
-  //if both sides are closed
-  else if(distanceRight < 8 && distanceLeft < 8){
-    rotation.moveBackwardFor(10);
-  }
-
 }
 
 //Will check for crossroads
-unsigned int timeGapChecker;
+unsigned long timeGapChecker;
 void gapChecker(){
     if(millis() > timeGapChecker){
-        if(distanceRight > 9){
+        if(distanceRight > 15){
             //record that there is a opening
             //Serial.println("Opening to the right");
         }
-        if(distanceLeft > 9){
+        if(distanceLeft > 15){
             //record that there is a opening
             //Serial.println("Opening to the left");
         }
@@ -133,35 +144,63 @@ void gapChecker(){
 }
 
 //Constanly get updated values of sonar distance
-unsigned int timeFront=0;
-unsigned int timeRigthSensor=0;
-unsigned int timeLeftSensor=0;
-
+int oldFront = 0;
+int oldLeft = 0;
+int oldRight = 0;
+unsigned long timeForUSS=0;
+unsigned long sensorSpacing=0;
 void distances(){
-    if(millis() > timeFront){
-        distanceFront = s1.getDistance();
-        //Serial.println("front");
-        //Serial.println(distanceFront);
-        timeFront = millis() + 250;
+  static int count=0;
+  if(millis() > timeForUSS){
+    if(millis() > sensorSpacing){
+      switch (count){
+        case 0:
+          distanceFront = s1.getDistance();
+          if(distanceFront == 0){
+            distanceFront = oldFront;
+            count = 1;
+            break;
+          }
+          oldFront = distanceFront;
+          count = 1;
+          // Serial.println("Front");
+          // Serial.println(distanceFront);
+          break;
+        case 1:
+          distanceRight = sRight.getDistance();
+          if(distanceRight == 0){
+            distanceRight = oldRight;
+            count = 2;
+            break;
+          }
+          oldRight = distanceRight;
+          count = 2;
+          // Serial.println("Right");
+          // Serial.println(distanceRight);
+          break;
+        case 2:
+          distanceLeft = sLeft.getDistance();
+          if(distanceLeft == 0){
+            distanceLeft = oldLeft;
+            count = 0;
+            break;
+          }
+          oldLeft = distanceLeft;
+          count = 0;
+          // Serial.println("Left");
+          // Serial.println(distanceLeft);
+          break;
+      }
+      sensorSpacing = millis() + 30;
     }
-    if(millis() > timeRigthSensor){
-        distanceRight = sRight.getDistance();
-        //Serial.println("Right");
-        //Serial.println(distanceRight);
-        timeRigthSensor = millis() + 270;
-    }
-    if(millis() > timeLeftSensor){
-        distanceLeft = sLeft.getDistance();
-        //Serial.println("Right");
-        //Serial.println(distanceRight);
-        timeLeftSensor = millis() + 300;
-    }
+    timeForUSS = millis() + 250;
+  }
 }
 
 void test(){
   rotation.turnDegreesLeft(90);
   delay(1000);
-
+  
 }
 
 void checkSide(){
