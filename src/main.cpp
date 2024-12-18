@@ -3,6 +3,7 @@
 #include <sonar.h>
 #include <rotation.h>
 
+
 //Motors and rotation sensor
 
 //left motor backwords  speed 0/255 PIN 11 A1
@@ -12,6 +13,10 @@
 
 Rotation rotation(3, 2);
 Motors motor(11,A1,9,A0);
+
+//pathing
+//Pathing path;
+
 
 //Ultra sonic sensor1 FRONT
 #define TRIGER1 7
@@ -50,6 +55,9 @@ void test();
 void checkSide();
 void deadend();
 void hitWallFront();
+void findNextOpeneing();
+void checkRotate(int direction);
+void rotated();
 
 void setup() {
   Serial.begin(9600);
@@ -63,18 +71,33 @@ void setup() {
 
 void loop() {
   distances();
+  //motor.forward(50);
+  //motor.forward();
+  //checkSide();
+   //distances();
+   //checkRotate(0);
   gapChecker();
   maze();
   hitWallFront();
+  rotation.checkRotation();
+
+  //checkSide();
+
   //test();
-  //delay(1000);
+  // rotation.turnDegreesLeft(90);
+  // delay(2000);
+  
 }
 
 void maze(){
   //Open area in front
   while(distanceFront > 14){
-    motor.forward();
+    motor.forward(50);
     distances();
+    checkSide();
+    rotation.checkRotation();
+    //path.addTurn(1);
+    //path.visited();
     //Serial.println("Forward");
     //record where bot has gone
   }
@@ -84,6 +107,7 @@ void maze(){
     // delay(400);
     //Serial.println("Stop");
     hitWallFront();
+    rotation.checkRotation();
     deadend();
   }
   distances();
@@ -92,37 +116,107 @@ void maze(){
 //if robot is 7cm away from wall it must move back in order to rotate properly
 void hitWallFront(){
   distances();
-  while(distanceFront < 8 && distanceFront > 0){
+  while(distanceFront < 7){
     rotation.moveBackwardFor(2);
     distances();
   }
 }
 
+//checks if robot can turn, 0 = left, 1 = right, 2 = backwords
+void checkRotate(int direction){
+  distances();
+  switch (direction)
+  {
+  case 0:
+    if(distanceRight < 7){
+      Serial.println("Check rotate left");
+      motor.backwardFix(80, 0);
+      delay(600);
+      motor.forwardFix(40, 0);
+      delay(600);
+      
+    }
+    rotation.turnDegreesLeft(90);
+    break;
+
+  case 1:
+    if(distanceLeft < 7){
+      Serial.println("Check rotate right");
+      motor.backwardFix(0, 20);
+      delay(200);
+      motor.forwardFix(0, 40);
+      delay(200);
+      
+    }
+    rotation.turnDegreesRight(90);
+    break;
+
+  case 2:
+    if(distanceLeft < 7 || distanceRight < 7){
+      rotation.moveBackwardFor(30);
+      
+    }
+    else{
+      rotation.turnDegreesRight(180);
+      rotation.checkRotation();
+    }
+  
+  default:
+    break;
+  }
+}
+
+void rotated(){
+  rotation.moveForwardFor(20);
+  distanceFront = s1.getDistance();
+  rotation.checkRotation();
+}
+
 //When robot reaches a dead end it must decide what to do
 void deadend(){
+  rotation.checkRotation();
   distances();
   hitWallFront();
   if(distanceFront < 14){
     //check if right side is open and left side is closed
     if(distanceRight > 13 && distanceLeft < 13){
-      rotation.turnDegreesRight(90);
+      //bool arr1[4] = {false, false, true, true};
+      //path.addCrossroad(arr1);
+      //rotation.turnDegreesRight(90);
+      checkRotate(1);
       Serial.println("Turn right");
+      rotated();
+      //path.addTurn(2);
     }
     //checks if left side is open and right closed
     else if(distanceRight < 13 && distanceLeft > 13){
-      rotation.turnDegreesLeft(90);
+      //rotation.turnDegreesLeft(90);
+      //bool arr2[4] = {true, false, false, true};
+      //path.addCrossroad(arr2);
+      
+      checkRotate(0);
       Serial.println("Turn left");
+      rotated();
+      //path.addTurn(0);
     }
     //if both sides are closed
     else if(distanceRight < 13 && distanceLeft < 13){
+      //path.addDeadEnd();
       distances();
       Serial.println("Go back Dead end");
-      rotation.turnDegreesLeft(180);
+      checkRotate(2);
+      rotated();
+      //path.addTurn(3);
     }
     //if both sides open
     else if(distanceRight > 13 && distanceLeft > 13){
-      rotation.turnDegreesLeft(90);
+      //bool arr1[4] = {true, false, true, true};
+      //path.addCrossroad(arr1);
+      checkRotate(0);
+      //rotation.turnDegreesLeft(90);
       Serial.println("Turn left open both sides");
+      rotated();
+      //path.addTurn(0);
     }
   }
 }
@@ -134,10 +228,12 @@ void gapChecker(){
         if(distanceRight > 15){
             //record that there is a opening
             //Serial.println("Opening to the right");
+            //path.addTurn(2);
         }
         if(distanceLeft > 15){
             //record that there is a opening
             //Serial.println("Opening to the left");
+            //path.addTurn(0);
         }
         timeGapChecker +=250;
     }
@@ -197,6 +293,15 @@ void distances(){
   }
 }
 
+//to decide what to do next when looking for next unexplored area
+// void findNextOpeneing(){
+//   int directions[] = {path.searchForNearestUnvisited(path._currentNode, path._currentDirection).directions};
+//   //loops through an array of new directions to unexplored area
+//   for(int x = 0; x < sizeof(directions); x++){
+    
+//   }
+// }
+
 void test(){
   rotation.turnDegreesLeft(90);
   delay(1000);
@@ -204,8 +309,34 @@ void test(){
 }
 
 void checkSide(){
-  if(distanceRight > 4){
-    motor.right();
-    delay(250);
+  int _valid_tolorence = 20;
+  int _corectionAmount = 3;
+  int _deviationTolorence = 2;
+  distances();
+  //checks for valid reading
+  if(distanceLeft < _valid_tolorence && distanceRight < _valid_tolorence){
+    int deviation = distanceLeft - distanceRight;
+    // Serial.println("deviation");
+    // Serial.println(deviation);
+    //checks if needs to adjust
+    if(abs(deviation) > _deviationTolorence){
+      int corection = _corectionAmount * abs(deviation);
+      // Serial.println("corection");
+      // Serial.println(corection);
+      //close to right wall
+      if(deviation > 0){
+        //Serial.println("Right wall");
+        motor.forwardFix((corection + 30), 0);
+        rotation.checkRotation();
+      }
+      //close to left wall
+      else if(deviation < 0){
+        //Serial.println("Left wall");
+        motor.forwardFix(0, (corection + 70));
+        rotation.checkRotation();
+      }   
+    }
+    
   }
+
 }
