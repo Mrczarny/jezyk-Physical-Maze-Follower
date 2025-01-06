@@ -3,7 +3,6 @@
 #include <sonar.h>
 #include <rotation.h>
 
-
 //Motors and rotation sensor
 
 //left motor backwords  speed 0/255 PIN 11 A1
@@ -13,9 +12,6 @@
 
 Rotation rotation(3, 2);
 Motors motor(11,A1,9,A0);
-
-//pathing
-//Pathing path;
 
 
 //Ultra sonic sensor1 FRONT
@@ -57,57 +53,51 @@ void deadend();
 void hitWallFront();
 void findNextOpeneing();
 void checkRotate(int direction);
-void rotated();
+void rotated(boolean startRun);
+void gameStart();
 
 void setup() {
   Serial.begin(9600);
   //Movement
   motor.setup(0, 0, 255, 255);
   rotation.setup(&motor, 0, 0);
-  // motor.setLeftMotorSpeed(170);
-  // motor.setRightMotorSpeed(255);
-}
-
-
-void loop() {
-  distances();
-  //motor.forward(50);
-  //motor.forward();
-  //checkSide();
-   //distances();
-   //checkRotate(0);
-  gapChecker();
-  maze();
-  hitWallFront();
-  rotation.checkRotation();
-
-  //checkSide();
-
-  //test();
-  // rotation.turnDegreesLeft(90);
-  // delay(2000);
   
 }
 
+boolean ready = false;
+void loop() {
+  
+  if(ready ==true){
+    distances();
+    gapChecker();
+    maze();
+    hitWallFront();
+    rotation.checkRotation();
+  }else{
+    gameStart();
+  }
+  
+
+}
+
 void maze(){
+
   //Open area in front
   while(distanceFront > 14){
     motor.forward(50);
     distances();
     checkSide();
     rotation.checkRotation();
-    //path.addTurn(1);
-    //path.visited();
+    
     //Serial.println("Forward");
     //record where bot has gone
   }
   //Wall in front
   if(distanceFront < 13){
     motor.stop();
-    // delay(400);
-    //Serial.println("Stop");
     hitWallFront();
     rotation.checkRotation();
+    distances();
     deadend();
   }
   distances();
@@ -153,23 +143,31 @@ void checkRotate(int direction){
 
   case 2:
     if(distanceLeft < 7 || distanceRight < 7){
-      rotation.moveBackwardFor(30);
+      motor.backwardFix(0, 20);
+      delay(200);
+      motor.forwardFix(0, 40);
+      delay(200);
       
     }
     else{
-      rotation.turnDegreesRight(180);
-      rotation.checkRotation();
+      for(int x = 0; x < 1; x++){
+        checkRotate(1);
+      }
     }
+  
+    break;
   
   default:
     break;
   }
 }
 
+//to be run when robot has made a turn, in order to make sure it has moved before it decides what next to do
 void rotated(){
   rotation.moveForwardFor(20);
   distanceFront = s1.getDistance();
   rotation.checkRotation();
+  distances();
 }
 
 //When robot reaches a dead end it must decide what to do
@@ -180,43 +178,36 @@ void deadend(){
   if(distanceFront < 14){
     //check if right side is open and left side is closed
     if(distanceRight > 13 && distanceLeft < 13){
-      //bool arr1[4] = {false, false, true, true};
-      //path.addCrossroad(arr1);
-      //rotation.turnDegreesRight(90);
       checkRotate(1);
       Serial.println("Turn right");
       rotated();
-      //path.addTurn(2);
+      distances();
     }
     //checks if left side is open and right closed
     else if(distanceRight < 13 && distanceLeft > 13){
-      //rotation.turnDegreesLeft(90);
-      //bool arr2[4] = {true, false, false, true};
-      //path.addCrossroad(arr2);
-      
       checkRotate(0);
       Serial.println("Turn left");
       rotated();
-      //path.addTurn(0);
+      distances();
     }
     //if both sides are closed
     else if(distanceRight < 13 && distanceLeft < 13){
-      //path.addDeadEnd();
-      distances();
-      Serial.println("Go back Dead end");
-      checkRotate(2);
+      // distances();
+       Serial.println("Go back Dead end");
+      // checkRotate(2);
+      // distances();
+      // distanceFront = s1.getDistance();
+      checkRotate(0);
+      //Serial.println("Turn left");
       rotated();
-      //path.addTurn(3);
+      distances();
     }
     //if both sides open
     else if(distanceRight > 13 && distanceLeft > 13){
-      //bool arr1[4] = {true, false, true, true};
-      //path.addCrossroad(arr1);
       checkRotate(0);
-      //rotation.turnDegreesLeft(90);
       Serial.println("Turn left open both sides");
       rotated();
-      //path.addTurn(0);
+      distances();
     }
   }
 }
@@ -224,16 +215,19 @@ void deadend(){
 //Will check for crossroads
 unsigned long timeGapChecker;
 void gapChecker(){
+  distances();
     if(millis() > timeGapChecker){
-        if(distanceRight > 15){
+        if(distanceRight > 20){
             //record that there is a opening
-            //Serial.println("Opening to the right");
-            //path.addTurn(2);
+            Serial.println("Opening to the right");
+            delay(200);
+            motor.stop();
+            rotation.turnDegreesRight(90);
+            rotated();
         }
         if(distanceLeft > 15){
             //record that there is a opening
             //Serial.println("Opening to the left");
-            //path.addTurn(0);
         }
         timeGapChecker +=250;
     }
@@ -243,10 +237,10 @@ void gapChecker(){
 int oldFront = 0;
 int oldLeft = 0;
 int oldRight = 0;
-unsigned long timeForUSS=0;
-unsigned long sensorSpacing=0;
+unsigned long timeForUSS=0;   //time needed before sensors can be called again
+unsigned long sensorSpacing=0;  //time between sensor readings
 void distances(){
-  static int count=0;
+  static int count=0;   //sensor count 0=front, 1=right, 2=left
   if(millis() > timeForUSS){
     if(millis() > sensorSpacing){
       switch (count){
@@ -293,36 +287,23 @@ void distances(){
   }
 }
 
-//to decide what to do next when looking for next unexplored area
-// void findNextOpeneing(){
-//   int directions[] = {path.searchForNearestUnvisited(path._currentNode, path._currentDirection).directions};
-//   //loops through an array of new directions to unexplored area
-//   for(int x = 0; x < sizeof(directions); x++){
-    
-//   }
-// }
-
 void test(){
-  rotation.turnDegreesLeft(90);
-  delay(1000);
+  
   
 }
 
+//will make sure robot travels strait, with the walls around it
 void checkSide(){
-  int _valid_tolorence = 20;
-  int _corectionAmount = 3;
-  int _deviationTolorence = 2;
+  int _valid_tolorence = 20;    //max value the distance can be
+  int _corectionAmount = 5;   //how much the bot must correct itself
+  int _deviationTolorence = 4;  //allowed deviation between distance readings
   distances();
   //checks for valid reading
   if(distanceLeft < _valid_tolorence && distanceRight < _valid_tolorence){
     int deviation = distanceLeft - distanceRight;
-    // Serial.println("deviation");
-    // Serial.println(deviation);
     //checks if needs to adjust
     if(abs(deviation) > _deviationTolorence){
       int corection = _corectionAmount * abs(deviation);
-      // Serial.println("corection");
-      // Serial.println(corection);
       //close to right wall
       if(deviation > 0){
         //Serial.println("Right wall");
@@ -338,5 +319,22 @@ void checkSide(){
     }
     
   }
+  gapChecker();
 
+}
+
+boolean startRun = false;
+void gameStart(){
+  //when is recived bot can go
+  if(startRun == false){
+    rotation.moveForwardFor(20);
+    //close gripper
+    rotation.turnDegreesLeft(90);
+    rotation.moveForwardFor(10);
+    motor.stop();
+    delay(1000);
+    startRun = true;
+    ready = true;
+  }
+  
 }
