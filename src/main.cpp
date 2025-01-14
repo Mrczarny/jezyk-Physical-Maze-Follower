@@ -4,6 +4,8 @@
 #include <rotation.h>
 #include <line.h>
 #include <gripper.h>
+#include <SoftwareSerial.h>
+#include <Adafruit_NeoPixel.h>
 
 // Motors and rotation sensor
 
@@ -14,11 +16,20 @@
 
 Rotation rotation(3, 2);
 Motors motor(11, A1, 9, A0);
-Gripper gripper1(8, 2, 1.5);
+Gripper gripper1(8, 2, 1.9);
 
 int linePins[] = {-1, -1, A2, A3, A4, A5, -1, -1};
 Line line(8, linePins);
 static lineSensorData lineState;
+
+// Define RX and TX pins for HC-12
+const int HC12_RX = 0;
+const int HC12_TX = 1;
+SoftwareSerial HC12(HC12_RX, HC12_TX);
+//ohter stuff needed
+boolean isOnLine = false;
+bool taskActive = false;
+bool finished = false;
 
 // Ultra sonic sensor1 FRONT
 #define TRIGER1 7
@@ -47,6 +58,21 @@ int distanceFront = 0;
 int distanceRight = 0;
 int distanceLeft = 0;
 
+//Neopixel
+int LEDPIN = 13;
+
+// How many NeoPixels are attached to the Arduino?
+int NUMPIXELS = 4;
+
+// When we setup the NeoPixel library, we tell it how many pixels, and which pin to use to send signals.
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, LEDPIN, NEO_RGB + NEO_KHZ800);
+
+void normal_Pixel();
+void braking_Pixel();
+void back_Pixel();
+void right_Pixel();
+void left_Pixel();
+
 // functions
 void distances();
 void gapChecker();
@@ -67,6 +93,9 @@ uint8_t convertToBinary(lineSensorData line);
 int detectChange();
 bool tryFindLine();
 void findEnd();
+void comunication();
+void communication2();
+void splitString(String input, char delimiter, String output[], int &count);
 
 void setup()
 {
@@ -74,8 +103,13 @@ void setup()
   // Movement
   motor.setup(0, 0, 255, 255);
   rotation.setup(&motor, 0, 0);
+  //line sensor
   line.setup(700);
   lineState = line.readLine();
+  //comunication
+  HC12.begin(9600);
+  //Serial.println("Slave: Ready to communicate with master.");
+  pixels.begin(); // This initializes the NeoPixel library.
 }
 
 uint8_t lineForward[] = {
@@ -95,33 +129,41 @@ uint8_t lineForward[] = {
 boolean ready = false;
 void loop()
 {
-  if (ready == true)
-  {
-    gripper1.gripper(gripper1._CloseGripper);
-    distances();
-    gapChecker();
-    maze();
-    hitWallFront();
-    rotation.checkRotation();
-    findEnd();
+  communication2();
+  if(taskActive == true){
+    if (ready == true)
+    {
+      gripper1.gripper(gripper1._CloseGripper);
+      distances();
+      gapChecker();
+      maze();
+      hitWallFront();
+      rotation.checkRotation();
+      findEnd();
+    }
+    else
+    {
+      gripper1.gripper(gripper1._OpenGripper);
+      startMaze();
+    }
+  }else{
+    motor.stop();
   }
-  else
-  {
-    gripper1.gripper(gripper1._OpenGripper);
-    startMaze();
-  }
+  
 }
 
 void maze()
 {
-
+  communication2();
   // Open area in front
   while (distanceFront > 14)
   {
+    communication2();
     motor.forward(70);
     distances();
     gapChecker();
     checkSide();
+    normal_Pixel();
     // rotation.checkRotation();
 
     // Serial.println("Forward");
@@ -130,6 +172,8 @@ void maze()
   // Wall in front
   if (distanceFront < 13)
   {
+    communication2();
+    braking_Pixel();
     motor.stop();
     hitWallFront();
     // rotation.checkRotation();
@@ -137,14 +181,18 @@ void maze()
     deadend();
   }
   distances();
+  communication2();
 }
 
 // if robot is 7cm away from wall it must move back in order to rotate properly
 void hitWallFront()
 {
+  communication2();
   distances();
   while (distanceFront < 7)
   {
+    communication2();
+    back_Pixel();
     rotation.moveBackwardFor(2);
     distances();
   }
@@ -153,6 +201,7 @@ void hitWallFront()
 // checks if robot can turn, 0 = left, 1 = right, 2 = backwords
 void checkRotate(int direction)
 {
+  communication2();
   distances();
   switch (direction)
   {
@@ -160,11 +209,14 @@ void checkRotate(int direction)
     if (distanceRight < 7)
     {
       Serial.println("Check rotate left");
+      back_Pixel();
       motor.backwardFix(80, 0);
       delay(600);
+      normal_Pixel();
       motor.forwardFix(40, 0);
       delay(600);
     }
+    left_Pixel();
     rotation.turnDegreesLeft(90);
     break;
 
@@ -172,19 +224,24 @@ void checkRotate(int direction)
     if (distanceLeft < 7)
     {
       Serial.println("Check rotate right");
+      back_Pixel();
       motor.backwardFix(0, 40);
       delay(200);
+      normal_Pixel();
       motor.forwardFix(0, 10);
       delay(200);
     }
+    right_Pixel();
     rotation.turnDegreesRight(90);
     break;
 
   case 2:
     if (distanceLeft < 7 || distanceRight < 7)
     {
+      back_Pixel();
       motor.backwardFix(0, 20);
       delay(200);
+      normal_Pixel();
       motor.forwardFix(0, 40);
       delay(200);
     }
@@ -206,6 +263,8 @@ void checkRotate(int direction)
 // to be run when robot has made a turn, in order to make sure it has moved before it decides what next to do
 void rotated()
 {
+  communication2();
+  normal_Pixel();
   rotation.moveForwardFor(20);
   distanceFront = s1.getDistance();
   hitWallFront();
@@ -217,6 +276,7 @@ void rotated()
 // When robot reaches a dead end it must decide what to do
 void deadend()
 {
+  communication2();
   // rotation.checkRotation();
   distances();
   hitWallFront();
@@ -266,6 +326,7 @@ void deadend()
 unsigned long timeGapChecker;
 void gapChecker()
 {
+  communication2();
   distances();
   if (millis() > timeGapChecker)
   {
@@ -275,7 +336,9 @@ void gapChecker()
       // record that there is a opening
       Serial.println("Opening to the right");
       // Serial.println(distanceRight);
+      normal_Pixel();
       rotation.moveForwardFor(5);
+      right_Pixel();
       rotation.turnDegreesRight(90);
       rotated();
     }
@@ -351,6 +414,7 @@ void test()
 // will make sure robot travels strait, with the walls around it
 void checkSide()
 {
+  communication2();
   int _valid_tolorence = 20;   // max value the distance can be
   int _corectionAmount = 5;    // how much the bot must correct itself
   int _deviationTolorence = 4; // allowed deviation between distance readings
@@ -367,6 +431,7 @@ void checkSide()
       if (deviation > 0)
       {
         // Serial.println("Right wall");
+        left_Pixel();
         motor.forwardFix((corection + 30), 0);
         // rotation.checkRotation();
       }
@@ -374,6 +439,7 @@ void checkSide()
       else if (deviation < 0)
       {
         // Serial.println("Left wall");
+        right_Pixel();
         motor.forwardFix(0, (corection + 30));
         // rotation.checkRotation();
       }
@@ -383,12 +449,16 @@ void checkSide()
 
 void startMaze()
 {
+  communication2();
   gripper1.gripper(gripper1._OpenGripper);
+  normal_Pixel();
   rotation.moveForwardFor(8);
+  braking_Pixel();
   motor.stop();
   lineState = line.readLine();
   while (convertToBinary(line.readLine()) != 0b11111111)
   {
+    communication2();
     lineState = line.readLine();
     for (size_t i = 0; i < 8; i++)
     {
@@ -398,50 +468,67 @@ void startMaze()
     Serial.println();
     motor.forward();
   }
+  braking_Pixel();
   motor.stop();
   gripper1.gripper(gripper1._CloseGripper);
   lineState = line.readLine();
   uint8_t decimal = convertToBinary(lineState);
+  normal_Pixel();
   rotation.moveForwardFor(7);
+  left_Pixel();
   rotation.turnDegreesLeft(90);
   while (convertToBinary(line.readLine()) != 0b11011011)
   {
+    communication2();
+    normal_Pixel();
     motor.forward();
   }
   while (convertToBinary(line.readLine()) != 0b11000011)
   {
+    communication2();
     moveWithLine();
   }
+  braking_Pixel();
   motor.stop();
   ready = true;
 }
 
 void moveWithLine()
 {
-  Serial.println("Move with line");
+  communication2();
+  //Serial.println("Move with line");
   lineState = line.readLine();
   uint8_t decimal = convertToBinary(lineState);
-  Serial.println(decimal);
+  //Serial.println(decimal);
   switch (decimal)
   {
     default:
+    normal_Pixel();
       motor.forward();  
       break;
     case 0b11011011:
+      isOnLine = true; //communication
+      normal_Pixel();
       motor.forward();
       break;
     case 0b11110011:
     case 0b11100011:
     case 0b11111011:
+      isOnLine = true; //communication
       //left
+      left_Pixel();
       motor.zeroLeft();
       break;
     case 0b11001111:
     case 0b11000111:
     case 0b11011111:
+      isOnLine = true; //communication
+      right_Pixel();
       motor.zeroRight();
       break;
     case 0b11111111:
+      isOnLine = true; //communication
+      braking_Pixel();
       motor.stop();
       break;
   }
@@ -449,23 +536,30 @@ void moveWithLine()
 
 void findEnd()
 {
+  communication2();
   lineState = line.readLine();
   while (convertToBinary(line.readLine()) != 0b11111111)
   {
+    communication2();
     lineState = line.readLine();
     if(detectChange() == 1){
       if(tryFindLine() == true){
+        isOnLine = true; //communication
         moveWithLine();
       }
     }
   }
+  braking_Pixel();   
   motor.stop();
   gripper1.gripper(gripper1._OpenGripper);
-  
+  back_Pixel();
+  rotation.moveBackwardFor(10);
+  finished = true;
 }
 
 int detectChange()
 {
+  communication2();
   // line
   lineSensorData newLineState = line.readLine();
   for (int i = 0; i < 8; i++)
@@ -474,9 +568,16 @@ int detectChange()
     {
       lineState = newLineState;
       Serial.println("Change detected");
+      for (size_t i = 0; i < 8; i++)
+      {
+        Serial.print(" ");
+        Serial.print(lineState.linePoints[i].isLine);
+      }
+      Serial.println(convertToBinary(lineState));
       return 1;
     }
   }
+  return 0;
 }
 
 int Find(uint8_t arr[], uint8_t x)
@@ -489,24 +590,199 @@ int Find(uint8_t arr[], uint8_t x)
 }
 
 boolean tryFindLine() {
-  int timer = millis();
-  Serial.println("tryFindLine");
-  while (millis() - timer < 5000)
+  communication2();
+  isOnLine = false; //communication
+  Serial.println("Try find line");
+  long timer = millis();
+  while (millis() - timer < 200)
   {
+    left_Pixel();
     motor.zeroLeft();
     if (Find(lineForward,convertToBinary(line.readLine())) != -1)
     {
+      isOnLine = true; //communication
       return true;
     }
   }
   timer = millis();
-  while (millis() - timer < 10000)
+  while (millis() - timer < 400)
   {
+    communication2();
     motor.zeroRight();
     if (Find(lineForward,convertToBinary(line.readLine())) != -1)
     {
+      isOnLine = true; //communication
       return true;
     }
   }
   return false;
 }
+
+//Comminication
+bool done = false;
+unsigned long taskStartTime = 0;
+const unsigned long taskDuration = 20000; // 20 seconds for demonstration
+
+bool taskRunning = false;
+void communication2(){
+  if (HC12.available() > 0) {
+    String receivedMessage = HC12.readStringUntil('\n');
+    receivedMessage.trim();
+    Serial.println("Received: " + receivedMessage);
+
+    // Parse the message
+    String fields[3];
+    int fieldCount = 0;
+    splitString(receivedMessage, '|', fields, fieldCount);
+
+    if (fieldCount > 1) {
+      String senderID = fields[0];
+      String command = fields[1];
+      if(senderID = 3){
+        if (command == "START") {
+          taskActive = true;
+          taskStartTime = millis();
+          //Serial.println("Slave: Task started.");
+        } else if (command == "REQUEST" && taskActive) {
+          //data to send, front distance, left wheel speed, right wheel speed, line sensor data
+          int sonar = distanceFront;
+          int sonar2 = distanceLeft;
+          int sonar3 = distanceRight;
+          float speed = rotation.calculateSpeed();
+          // Perform task and send periodic updates
+          //HC12.println("1|DATA|" + String(sonar)+"|"+String(speed) + "\n");
+          if(isOnLine == true){
+            Serial.println("3|DATA| speed: " + String(speed)+"| linefollower: True | distance1: "+String(sonar) +
+             "| distance2: "+String(sonar2) + "| distance3: "+String(sonar3));
+          }else{
+            Serial.println("3|DATA| speed: " + String(speed)+"| linefollower: False | distance1: "+String(sonar) +
+             "| distance2: "+String(sonar2) + "| distance3: "+String(sonar3));
+          }
+          //motor.forward();
+          //Serial.println("Slave: Sent data update.");
+
+        }else if(finished == true){
+          Serial.println("3|DONE\n");
+        }
+      }
+    }
+  }
+}
+
+// Utility function to split a string
+void splitString(String input, char delimiter, String output[], int &count) {
+  count = 0;
+  int start = 0;
+  int end = input.indexOf(delimiter);
+
+  while (end != -1) {
+    output[count++] = input.substring(start, end);
+    start = end + 1;
+    end = input.indexOf(delimiter, start);
+  }
+  output[count++] = input.substring(start);
+}
+
+void normal_Pixel()
+{
+  //pixels.Color takes RGB values, from 0,0,0 up to 255,255,255
+  pixels.clear();
+  pixels.setPixelColor(0, pixels.Color(75,0,0)); // red at 60
+  pixels.setPixelColor(1, pixels.Color(75,0,0)); // red at 60
+  pixels.setPixelColor(2, pixels.Color(255, 255, 75)); // white ish headlights 100
+  pixels.setPixelColor(3, pixels.Color(255, 255, 75)); // white ish headlights 100
+  pixels.show();
+}
+
+void braking_Pixel()
+{
+  //pixels.Color takes RGB values, from 0,0,0 up to 255,255,255
+  pixels.clear();
+  pixels.setPixelColor(0, pixels.Color(255,0,0)); // red at 100
+  pixels.setPixelColor(1, pixels.Color(255,0,0)); // red at 100
+  pixels.setPixelColor(2, pixels.Color(255, 255, 75)); // white ish headlights 100
+  pixels.setPixelColor(3, pixels.Color(255, 255, 75)); // white ish headlights 100
+  pixels.show();
+}
+
+void back_Pixel()
+{
+  pixels.clear();
+  pixels.setPixelColor(0, pixels.Color(255,0,0)); // red at 100
+  pixels.setPixelColor(1, pixels.Color(255,255,255)); // red at 100
+  pixels.setPixelColor(2, pixels.Color(255, 255, 75)); // white ish headlights 100
+  pixels.setPixelColor(3, pixels.Color(255, 255, 75)); // white ish headlights 100
+  pixels.show();
+}
+
+  void right_Pixel()
+  {
+    static bool lightOn = false;
+    static unsigned long timer = millis();
+
+    if ((millis() - timer) > 500)
+    {
+      if(lightOn == true)
+      {
+        pixels.clear();
+        pixels.setPixelColor(0, pixels.Color(75, 0, 0));      // Red at 60
+        pixels.setPixelColor(1, pixels.Color(255, 100, 0));   // Orange
+        pixels.setPixelColor(2, pixels.Color(255, 100, 0));   // Orange
+        pixels.setPixelColor(3, pixels.Color(255, 255, 75));  // White-ish headlights
+        pixels.show();
+      }
+      else
+        /*
+        0 = leftback
+        1 = rightback
+        2 = leftfront
+        3 = rightfront
+        */
+      {
+        pixels.clear();
+        pixels.setPixelColor(0, pixels.Color(75, 0, 0));      // Red at 60
+        pixels.setPixelColor(1, pixels.Color(0,0,0));
+        pixels.setPixelColor(2, pixels.Color(0,0,0));
+        pixels.setPixelColor(3, pixels.Color(255, 255, 75));  // White-ish headlights
+        pixels.show(); // Turn off the orange pixels
+      }
+      lightOn = !lightOn;
+      timer = millis();
+    }
+  }
+
+void left_Pixel() 
+{
+  static bool lightOn = false;
+    static unsigned long timer = millis();
+
+    if ((millis() - timer) > 500)
+    {
+      if(lightOn == true)
+      {
+        pixels.clear();
+        pixels.setPixelColor(0, pixels.Color(255, 100, 0));   // Orange
+        pixels.setPixelColor(1, pixels.Color(75, 0, 0));      // Red
+        pixels.setPixelColor(2, pixels.Color(255, 255, 75));  // White
+        pixels.setPixelColor(3, pixels.Color(255, 100, 0));   // Orange
+        pixels.show();
+        }
+      else
+        /*
+        0 = leftback
+        1 = rightback
+        2 = leftfront
+        3 = rightfront
+        */
+      {
+        pixels.clear();
+        pixels.setPixelColor(0, pixels.Color(0, 0, 0));      // Red at 60
+        pixels.setPixelColor(1, pixels.Color(75, 0, 0));
+        pixels.setPixelColor(2, pixels.Color(255, 255, 75));
+        pixels.setPixelColor(3, pixels.Color(0, 0, 0));  // White-ish headlights
+        pixels.show(); // Turn off the orange pixels
+      }
+      lightOn = !lightOn;
+      timer = millis();
+    }
+  }
