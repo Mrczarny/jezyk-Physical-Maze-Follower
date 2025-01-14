@@ -7,109 +7,14 @@
 #include <SoftwareSerial.h>
 #include <Adafruit_NeoPixel.h>
 
-// Motors and rotation sensor
-
-// left motor backwords  speed 0/255 PIN 11 A1
-// left motor forward   direction 1/0 PIN 2 A2
-// right motor forward   speed 0/255 PIN 9 B1
-// right motor backwords  direction 1/0 12 B2
-
 Rotation rotation(3, 2);
 Motors motor(11, A1, 9, A0);
 Gripper gripper1(8, 2, 1.9);
 
+//Line sensor
 int linePins[] = {-1, -1, A2, A3, A4, A5, -1, -1};
 Line line(8, linePins);
 static lineSensorData lineState;
-
-// Define RX and TX pins for HC-12
-const int HC12_RX = 0;
-const int HC12_TX = 1;
-SoftwareSerial HC12(HC12_RX, HC12_TX);
-//ohter stuff needed
-boolean isOnLine = false;
-bool taskActive = false;
-bool finished = false;
-
-// Ultra sonic sensor1 FRONT
-#define TRIGER1 7
-#define ECHO1 10
-
-// Ultra sonic sensor2 RIGHT
-#define TRIGER2 5
-#define ECHO2 6
-
-// Ultra sonic sensor2 LEFT
-#define TRIGER3 12
-#define ECHO3 4
-
-// Servo motor
-#define SERVOPIN 8
-
-// Ultra sonic sensor
-Sonar s1(TRIGER1, ECHO1);
-Sonar sRight(TRIGER2, ECHO2);
-Sonar sLeft(TRIGER3, ECHO3);
-
-// maze
-int distanceFront = 0;
-int distanceRight = 0;
-int distanceLeft = 0;
-
-//Neopixel
-int LEDPIN = 13;
-
-// How many NeoPixels are attached to the Arduino?
-int NUMPIXELS = 4;
-
-// When we setup the NeoPixel library, we tell it how many pixels, and which pin to use to send signals.
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, LEDPIN, NEO_RGB + NEO_KHZ800);
-
-void normal_Pixel();
-void braking_Pixel();
-void back_Pixel();
-void right_Pixel();
-void left_Pixel();
-
-// functions
-void distances();
-void gapChecker();
-void maze();
-void tester();
-void test();
-void checkSide();
-void deadend();
-void hitWallFront();
-void findNextOpeneing();
-void checkRotate(int direction);
-void rotated(boolean startRun);
-void gameStart();
-void beginning();
-void startMaze();
-void moveWithLine();
-uint8_t convertToBinary(lineSensorData line);
-int detectChange();
-bool tryFindLine();
-void findEnd();
-void comunication();
-void communication2();
-void splitString(String input, char delimiter, String output[], int &count);
-
-void setup()
-{
-  Serial.begin(9600);
-  // Movement
-  motor.setup(0, 0, 255, 255);
-  rotation.setup(&motor, 0, 0);
-  //line sensor
-  line.setup(700);
-  lineState = line.readLine();
-  //comunication
-  HC12.begin(9600);
-  //Serial.println("Slave: Ready to communicate with master.");
-  pixels.begin(); // This initializes the NeoPixel library.
-}
-
 uint8_t lineForward[] = {
   0b00011000,
   0b00110000,
@@ -124,15 +29,89 @@ uint8_t lineForward[] = {
   0b00011100
 };
 
-boolean ready = false;
+// Define RX and TX pins for HC-12
+const int HC12_RX = 0;
+const int HC12_TX = 1;
+SoftwareSerial HC12(HC12_RX, HC12_TX);
+//other stuff needed
+boolean isOnLine = false;
+bool taskActive = false;  //if robot can run
+bool finished = false;    //if robot dinished its task
+boolean ready = false;    //if robot finsihsed the start process
+
+// Ultra sonic sensor1 FRONT
+#define TRIGER1 7
+#define ECHO1 10
+
+// Ultra sonic sensor2 RIGHT
+#define TRIGER2 5
+#define ECHO2 6
+
+// Ultra sonic sensor3 LEFT
+#define TRIGER3 12
+#define ECHO3 4
+
+// Servo motor
+#define SERVOPIN 8
+
+// Ultra sonic sensor
+Sonar s1(TRIGER1, ECHO1);
+Sonar sRight(TRIGER2, ECHO2);
+Sonar sLeft(TRIGER3, ECHO3);
+
+// distances for ultra sonic sensors
+int distanceFront = 0;
+int distanceRight = 0;
+int distanceLeft = 0;
+
+//Neopixel
+int LEDPIN = 13;
+int NUMPIXELS = 4;
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, LEDPIN, NEO_RGB + NEO_KHZ800);
+
+void normal_Pixel();
+void braking_Pixel();
+void back_Pixel();
+void right_Pixel();
+void left_Pixel();
+
+// functions
+void distances();
+void gapChecker();
+void maze();
+void checkSide();
+void deadend();
+void hitWallFront();
+void checkRotate(int direction);
+void startMaze();
+void moveWithLine();
+uint8_t convertToBinary(lineSensorData line);
+int detectChange();
+bool tryFindLine();
+void findEnd();
+void communication2();
+void splitString(String input, char delimiter, String output[], int &count);
+
+void setup()
+{
+  Serial.begin(9600);
+  // Movement
+  motor.setup(0, 0, 255, 255);
+  rotation.setup(&motor, 0, 0);
+  //line sensor
+  line.setup(700);
+  lineState = line.readLine();
+  //comunication
+  HC12.begin(9600);
+  pixels.begin(); // This initializes the NeoPixel library.
+}
+
 void loop()
 {
   communication2();
-  if(taskActive == true){
-    //ready = true;
-    if (ready == true)
+  if(taskActive == true){ //comand to start the robot
+    if (ready == true)  //finish start process
     {
-      Serial.println("Start maze");
       gripper1.gripper(gripper1._CloseGripper);
       distances();
       maze();
@@ -143,38 +122,12 @@ void loop()
     }
     else
     {
-      Serial.println("start game");
       gripper1.gripper(gripper1._OpenGripper);
       startMaze();
     }
   }else{
     motor.stop();
   }
-
-  // findEnd();
-  // test();
-  // Serial.println(s1.getDistance());
-  // //delay(1000);
-  // if(s1.getDistance() > 10){
-  //   rotation.moveForwardFor(10);
-  // }else{
-  //   rotation.moveBackwardFor(10);
-  // }
-  // //maze();
-
-  // lineState = line.readLine();
-  // while (convertToBinary(line.readLine()) != 0b00111100)
-  // {
-  //   communication2();
-  //   lineState = line.readLine();
-  //   for (size_t i = 0; i < 8; i++)
-  //   {
-  //     Serial.print(" ");
-  //     Serial.print(lineState.linePoints[i].isLine);
-  //   }
-  //   Serial.println();
-  //   //motor.forward();
-  //}
 }
 
 void maze()
@@ -212,12 +165,12 @@ void hitWallFront()
   distances();
   while (distanceFront < 7)
   {
-    Serial.println(distanceFront);
-    Serial.println("Hit wall front");
+    //Serial.println("Hit wall front");
     communication2();
     back_Pixel();
     rotation.moveBackwardFor(2);
     distances();
+    rotation.checkRotation();
   }
 }
 
@@ -229,54 +182,57 @@ void checkRotate(int direction)
   switch (direction)
   {
   case 0:
-    // if (distanceRight < 7)
-    // {
-    //   Serial.println("Check rotate left");
-    //   back_Pixel();
-    //   motor.backwardFix(80, 0);
-    //   delay(600);
-    //   normal_Pixel();
-    //   motor.forwardFix(40, 0);
-    //   delay(600);
-    // }
+    if (distanceRight < 7)
+    {
+      Serial.println("Check rotate left");
+      back_Pixel();
+      motor.backwardFix(80, 0);
+      delay(600);
+      normal_Pixel();
+      motor.forwardFix(40, 0);
+      delay(600);
+    }
     left_Pixel();
     rotation.turnDegreesLeft(90);
+    rotation.checkRotation();
     break;
 
   case 1:
-    // if (distanceLeft < 7)
-    // {
-    //   Serial.println("Check rotate right");
-    //   back_Pixel();
-    //   motor.backwardFix(0, 40);
-    //   delay(200);
-    //   normal_Pixel();
-    //   motor.forwardFix(0, 10);
-    //   delay(200);
-    // }
+    if (distanceLeft < 7)
+    {
+      Serial.println("Check rotate right");
+      back_Pixel();
+      motor.backwardFix(0, 40);
+      delay(200);
+      normal_Pixel();
+      motor.forwardFix(0, 10);
+      delay(200);
+    }
     right_Pixel();
     rotation.turnDegreesRight(90);
+    rotation.checkRotation();
     break;
 
   case 2:
-    // if (distanceLeft < 7 || distanceRight < 7)
-    // {
-    //   back_Pixel();
-    //   motor.backwardFix(0, 20);
-    //   delay(200);
-    //   normal_Pixel();
-    //   motor.forwardFix(0, 40);
-    //   delay(200);
-    // }
-    // else
-    // {
-    //   for (int x = 0; x < 1; x++)
-    //   {
-    //     checkRotate(1);
-    //   }
-    // }
+    if (distanceLeft < 7 || distanceRight < 7)
+    {
+      back_Pixel();
+      motor.backwardFix(0, 20);
+      delay(200);
+      normal_Pixel();
+      motor.forwardFix(0, 40);
+      delay(200);
+    }
+    else
+    {
+      //turns right twice
+      for (int x = 0; x < 1; x++)
+      {
+        checkRotate(1);
+      }
+    }
     rotation.turnDegreesRight(180);
-
+    rotation.checkRotation();
     break;
 
   default:
@@ -290,9 +246,9 @@ void rotated()
   communication2();
   normal_Pixel();
   rotation.moveForwardFor(20);
+  rotation.checkRotation();
   distanceFront = s1.getDistance();
   hitWallFront();
-  // rotation.checkRotation();
   distanceRight = sRight.getDistance();
   distances();
 }
@@ -301,7 +257,6 @@ void rotated()
 void deadend()
 {
   communication2();
-  // rotation.checkRotation();
   distances();
   hitWallFront();
   if (distanceFront < 14)
@@ -310,7 +265,7 @@ void deadend()
     if (distanceRight > 13 && distanceLeft < 13)
     {
       checkRotate(1);
-      Serial.println("Turn right");
+      //Serial.println("Turn right");
       rotated();
       distances();
     }
@@ -318,7 +273,7 @@ void deadend()
     else if (distanceRight < 13 && distanceLeft > 13)
     {
       checkRotate(0);
-      Serial.println("Turn left");
+      //Serial.println("Turn left");
       rotated();
       distances();
     }
@@ -326,7 +281,7 @@ void deadend()
     else if (distanceRight < 13 && distanceLeft < 13)
     {
       // distances();
-      Serial.println("Go back Dead end");
+      //Serial.println("Go back Dead end");
       checkRotate(1);
       rotated();
       distances();
@@ -335,12 +290,13 @@ void deadend()
     else if (distanceRight > 13 && distanceLeft > 13)
     {
       checkRotate(1);
-      Serial.println("Turn right open both sides");
+      //Serial.println("Turn right open both sides");
       rotated();
       distances();
     }else{
       rotation.moveForwardFor(2);
       distances();
+      rotation.checkRotation();
     }
   }
 }
@@ -356,13 +312,13 @@ void gapChecker()
     hitWallFront();
     if (distanceRight > 20 && distanceRight < 90)
     {
-      // record that there is a opening
-      Serial.println("Opening to the right");
+      //Serial.println("Opening to the right");
       normal_Pixel();
       rotation.moveForwardFor(5);
       right_Pixel();
       rotation.turnDegreesRight(90);
       rotated();
+      rotation.checkRotation();
     }
     timeGapChecker += 250;
   }
@@ -451,7 +407,6 @@ void checkSide()
         // Serial.println("Right wall");
         left_Pixel();
         motor.forwardFix((corection + 30), 0);
-        // rotation.checkRotation();
       }
       // close to left wall
       else if (deviation < 0)
@@ -465,9 +420,9 @@ void checkSide()
   }
 }
 
+//start process to pick up cone and enter maze
 void startMaze()
 {
-  //communication2();
   gripper1.gripper(gripper1._OpenGripper);
   normal_Pixel();
   rotation.moveForwardFor(12);
@@ -494,6 +449,7 @@ void startMaze()
   rotation.moveForwardFor(7);
   left_Pixel();
   rotation.turnDegreesLeft(90);
+  //not working correctly
   // while (convertToBinary(line.readLine()) != 0b00011000)
   // {
   //   communication2();
@@ -515,16 +471,17 @@ void startMaze()
   //   ready = true;
   // }
   rotation.moveForwardFor(30);
+  rotation.checkRotation();
   ready = true;
 }
 
+//follows a line
 void moveWithLine()
 {
   communication2();
   //Serial.println("Move with line");
   lineState = line.readLine();
   uint8_t decimal = convertToBinary(lineState);
-  //Serial.println(decimal);
   switch (decimal)
   {
     default:
@@ -559,6 +516,7 @@ void moveWithLine()
   }
 }
 
+//code to find the end of the maze with a line
 void findEnd()
 {
   communication2();
@@ -582,6 +540,7 @@ void findEnd()
   finished = true;
 }
 
+//detects changes, so will see if there is a line
 int detectChange()
 {
   communication2();
@@ -614,10 +573,11 @@ int Find(uint8_t arr[], uint8_t x)
   return -1;
 }
 
+//if line is lost it will try to find it
 boolean tryFindLine() {
   communication2();
   isOnLine = false; //communication
-  Serial.println("Try find line");
+  //Serial.println("Try find line");
   long timer = millis();
   while (millis() - timer < 200)
   {
@@ -646,13 +606,13 @@ boolean tryFindLine() {
 //Comminication
 bool done = false;
 unsigned long taskStartTime = 0;
-const unsigned long taskDuration = 20000; // 20 seconds for demonstration
-
 bool taskRunning = false;
+
 void communication2(){
+  //waits till it gets a message
   if (HC12.available() > 0) {
     String receivedMessage = HC12.readStringUntil('\n');
-    receivedMessage.trim();
+    receivedMessage.trim(); //removes whitespace
     //Serial.println("Received: " + receivedMessage);
 
     // Parse the message
@@ -664,6 +624,7 @@ void communication2(){
       String senderID = fields[0];
       String command = fields[1];
       if(senderID = 3){
+        //robot starts
         if (command == "START") {
           taskActive = true;
           taskStartTime = millis();
@@ -674,8 +635,7 @@ void communication2(){
           int sonar2 = distanceLeft;
           int sonar3 = distanceRight;
           float speed = rotation.calculateSpeed();
-          // Perform task and send periodic updates
-          //HC12.println("1|DATA|" + String(sonar)+"|"+String(speed) + "\n");
+          // HC12.println does not work, serial print works instead
           if(isOnLine == true){
             Serial.println("3|DATA| speed: " + String(speed)+"| linefollower: True | distance1: "+String(sonar) +
              "| distance2: "+String(sonar2) + "| distance3: "+String(sonar3));
@@ -684,7 +644,6 @@ void communication2(){
              "| distance2: "+String(sonar2) + "| distance3: "+String(sonar3));
           }
           //Serial.println("Slave: Sent data update.");
-
         }else if(finished == true){
           Serial.println("3|DONE\n");
         }
@@ -707,6 +666,7 @@ void splitString(String input, char delimiter, String output[], int &count) {
   output[count++] = input.substring(start);
 }
 
+//code for neopixels
 void normal_Pixel()
 {
   //pixels.Color takes RGB values, from 0,0,0 up to 255,255,255
@@ -810,16 +770,3 @@ void left_Pixel()
       timer = millis();
     }
   }
-
-void test()
-{
-  if(s1.getDistance() > 10)
-  {
-    //Serial.println(s1.getDistance());
-    motor.forward();
-  }
-  //Serial.println(s1.getDistance());
-  rotation.turnDegreesLeft(90);
-  
-
-}
