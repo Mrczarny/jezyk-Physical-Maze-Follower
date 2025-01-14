@@ -45,8 +45,6 @@ bool finished = false;
 
 // Servo motor
 #define SERVOPIN 8
-const int OPENGRIPPER = 2;
-const int CLOSEGRIPPER = 1.5;
 
 // Ultra sonic sensor
 Sonar s1(TRIGER1, ECHO1);
@@ -113,17 +111,17 @@ void setup()
 }
 
 uint8_t lineForward[] = {
-  0b11011011,
-  0b11110011,
-  0b11110011,
-  0b11100011,
-  0b11000011,
-  0b11111011,
-  0b11001111,
-  0b11001111,
-  0b11000111,
-  0b11000011,
-  0b11011111
+  0b00011000,
+  0b00110000,
+  0b00110000,
+  0b00100000,
+  0b00000000,
+  0b00111000,
+  0b00001100,
+  0b00001100,
+  0b00000100,
+  0b00000000,
+  0b00011100
 };
 
 boolean ready = false;
@@ -131,25 +129,52 @@ void loop()
 {
   communication2();
   if(taskActive == true){
+    //ready = true;
     if (ready == true)
     {
+      Serial.println("Start maze");
       gripper1.gripper(gripper1._CloseGripper);
       distances();
-      gapChecker();
       maze();
       hitWallFront();
+      gapChecker();
       rotation.checkRotation();
       findEnd();
     }
     else
     {
+      Serial.println("start game");
       gripper1.gripper(gripper1._OpenGripper);
       startMaze();
     }
   }else{
     motor.stop();
   }
-  
+
+  // findEnd();
+  // test();
+  // Serial.println(s1.getDistance());
+  // //delay(1000);
+  // if(s1.getDistance() > 10){
+  //   rotation.moveForwardFor(10);
+  // }else{
+  //   rotation.moveBackwardFor(10);
+  // }
+  // //maze();
+
+  // lineState = line.readLine();
+  // while (convertToBinary(line.readLine()) != 0b00111100)
+  // {
+  //   communication2();
+  //   lineState = line.readLine();
+  //   for (size_t i = 0; i < 8; i++)
+  //   {
+  //     Serial.print(" ");
+  //     Serial.print(lineState.linePoints[i].isLine);
+  //   }
+  //   Serial.println();
+  //   //motor.forward();
+  //}
 }
 
 void maze()
@@ -158,16 +183,13 @@ void maze()
   // Open area in front
   while (distanceFront > 14)
   {
+    distances();
     communication2();
     motor.forward(70);
     distances();
     gapChecker();
     checkSide();
     normal_Pixel();
-    // rotation.checkRotation();
-
-    // Serial.println("Forward");
-    // record where bot has gone
   }
   // Wall in front
   if (distanceFront < 13)
@@ -176,7 +198,6 @@ void maze()
     braking_Pixel();
     motor.stop();
     hitWallFront();
-    // rotation.checkRotation();
     distances();
     deadend();
   }
@@ -191,6 +212,8 @@ void hitWallFront()
   distances();
   while (distanceFront < 7)
   {
+    Serial.println(distanceFront);
+    Serial.println("Hit wall front");
     communication2();
     back_Pixel();
     rotation.moveBackwardFor(2);
@@ -206,52 +229,53 @@ void checkRotate(int direction)
   switch (direction)
   {
   case 0:
-    if (distanceRight < 7)
-    {
-      Serial.println("Check rotate left");
-      back_Pixel();
-      motor.backwardFix(80, 0);
-      delay(600);
-      normal_Pixel();
-      motor.forwardFix(40, 0);
-      delay(600);
-    }
+    // if (distanceRight < 7)
+    // {
+    //   Serial.println("Check rotate left");
+    //   back_Pixel();
+    //   motor.backwardFix(80, 0);
+    //   delay(600);
+    //   normal_Pixel();
+    //   motor.forwardFix(40, 0);
+    //   delay(600);
+    // }
     left_Pixel();
     rotation.turnDegreesLeft(90);
     break;
 
   case 1:
-    if (distanceLeft < 7)
-    {
-      Serial.println("Check rotate right");
-      back_Pixel();
-      motor.backwardFix(0, 40);
-      delay(200);
-      normal_Pixel();
-      motor.forwardFix(0, 10);
-      delay(200);
-    }
+    // if (distanceLeft < 7)
+    // {
+    //   Serial.println("Check rotate right");
+    //   back_Pixel();
+    //   motor.backwardFix(0, 40);
+    //   delay(200);
+    //   normal_Pixel();
+    //   motor.forwardFix(0, 10);
+    //   delay(200);
+    // }
     right_Pixel();
     rotation.turnDegreesRight(90);
     break;
 
   case 2:
-    if (distanceLeft < 7 || distanceRight < 7)
-    {
-      back_Pixel();
-      motor.backwardFix(0, 20);
-      delay(200);
-      normal_Pixel();
-      motor.forwardFix(0, 40);
-      delay(200);
-    }
-    else
-    {
-      for (int x = 0; x < 1; x++)
-      {
-        checkRotate(1);
-      }
-    }
+    // if (distanceLeft < 7 || distanceRight < 7)
+    // {
+    //   back_Pixel();
+    //   motor.backwardFix(0, 20);
+    //   delay(200);
+    //   normal_Pixel();
+    //   motor.forwardFix(0, 40);
+    //   delay(200);
+    // }
+    // else
+    // {
+    //   for (int x = 0; x < 1; x++)
+    //   {
+    //     checkRotate(1);
+    //   }
+    // }
+    rotation.turnDegreesRight(180);
 
     break;
 
@@ -303,11 +327,7 @@ void deadend()
     {
       // distances();
       Serial.println("Go back Dead end");
-      // checkRotate(2);
-      // distances();
-      // distanceFront = s1.getDistance();
       checkRotate(1);
-      // Serial.println("Turn left");
       rotated();
       distances();
     }
@@ -317,6 +337,9 @@ void deadend()
       checkRotate(1);
       Serial.println("Turn right open both sides");
       rotated();
+      distances();
+    }else{
+      rotation.moveForwardFor(2);
       distances();
     }
   }
@@ -331,11 +354,10 @@ void gapChecker()
   if (millis() > timeGapChecker)
   {
     hitWallFront();
-    if (distanceRight > 20 && distanceRight < 60)
+    if (distanceRight > 20 && distanceRight < 90)
     {
       // record that there is a opening
       Serial.println("Opening to the right");
-      // Serial.println(distanceRight);
       normal_Pixel();
       rotation.moveForwardFor(5);
       right_Pixel();
@@ -407,10 +429,6 @@ void distances()
   }
 }
 
-void test()
-{
-}
-
 // will make sure robot travels strait, with the walls around it
 void checkSide()
 {
@@ -449,47 +467,54 @@ void checkSide()
 
 void startMaze()
 {
-  communication2();
+  //communication2();
   gripper1.gripper(gripper1._OpenGripper);
   normal_Pixel();
-  rotation.moveForwardFor(8);
+  rotation.moveForwardFor(12);
   braking_Pixel();
   motor.stop();
   lineState = line.readLine();
-  while (convertToBinary(line.readLine()) != 0b11111111)
+  while (convertToBinary(line.readLine()) != 0b00111100)
   {
     communication2();
     lineState = line.readLine();
     for (size_t i = 0; i < 8; i++)
     {
-      Serial.print(" ");
-      Serial.print(lineState.linePoints[i].isLine);
+      //Serial.print(" ");
+      //Serial.print(lineState.linePoints[i].isLine);
     }
-    Serial.println();
-    motor.forward();
+    //Serial.println();
+    //motor.forward();
   }
   braking_Pixel();
   motor.stop();
   gripper1.gripper(gripper1._CloseGripper);
   lineState = line.readLine();
-  uint8_t decimal = convertToBinary(lineState);
   normal_Pixel();
   rotation.moveForwardFor(7);
   left_Pixel();
   rotation.turnDegreesLeft(90);
-  while (convertToBinary(line.readLine()) != 0b11011011)
-  {
-    communication2();
-    normal_Pixel();
-    motor.forward();
-  }
-  while (convertToBinary(line.readLine()) != 0b11000011)
-  {
-    communication2();
-    moveWithLine();
-  }
-  braking_Pixel();
-  motor.stop();
+  // while (convertToBinary(line.readLine()) != 0b00011000)
+  // {
+  //   communication2();
+  //   normal_Pixel();
+  //   motor.forward();
+  // }
+  // while (convertToBinary(line.readLine()) != 0b00000000)
+  // {
+  //   communication2();
+  //   moveWithLine();
+  // }
+  // if(convertToBinary(line.readLine()) == 0b00000000){
+  //   braking_Pixel();
+  //   motor.stop();
+  //   ready = true;
+  //   Serial.println("finished start");
+  // }
+  // if(millis() - startTime > 10000){
+  //   ready = true;
+  // }
+  rotation.moveForwardFor(30);
   ready = true;
 }
 
@@ -503,30 +528,30 @@ void moveWithLine()
   switch (decimal)
   {
     default:
-    normal_Pixel();
+      normal_Pixel();
       motor.forward();  
       break;
-    case 0b11011011:
+    case 0b00011000:
       isOnLine = true; //communication
       normal_Pixel();
       motor.forward();
       break;
-    case 0b11110011:
-    case 0b11100011:
-    case 0b11111011:
+    case 0b00110000:
+    case 0b00100000:
+    case 0b00111000:
       isOnLine = true; //communication
       //left
       left_Pixel();
       motor.zeroLeft();
       break;
-    case 0b11001111:
-    case 0b11000111:
-    case 0b11011111:
+    case 0b00001100:
+    case 0b00000100:
+    case 0b00011100:
       isOnLine = true; //communication
       right_Pixel();
       motor.zeroRight();
       break;
-    case 0b11111111:
+    case 0b00111100:
       isOnLine = true; //communication
       braking_Pixel();
       motor.stop();
@@ -538,7 +563,7 @@ void findEnd()
 {
   communication2();
   lineState = line.readLine();
-  while (convertToBinary(line.readLine()) != 0b11111111)
+  while (convertToBinary(line.readLine()) != 0b00111100)
   {
     communication2();
     lineState = line.readLine();
@@ -570,10 +595,10 @@ int detectChange()
       Serial.println("Change detected");
       for (size_t i = 0; i < 8; i++)
       {
-        Serial.print(" ");
-        Serial.print(lineState.linePoints[i].isLine);
+        //Serial.print(" ");
+        //Serial.print(lineState.linePoints[i].isLine);
       }
-      Serial.println(convertToBinary(lineState));
+      //Serial.println(convertToBinary(lineState));
       return 1;
     }
   }
@@ -628,7 +653,7 @@ void communication2(){
   if (HC12.available() > 0) {
     String receivedMessage = HC12.readStringUntil('\n');
     receivedMessage.trim();
-    Serial.println("Received: " + receivedMessage);
+    //Serial.println("Received: " + receivedMessage);
 
     // Parse the message
     String fields[3];
@@ -658,7 +683,6 @@ void communication2(){
             Serial.println("3|DATA| speed: " + String(speed)+"| linefollower: False | distance1: "+String(sonar) +
              "| distance2: "+String(sonar2) + "| distance3: "+String(sonar3));
           }
-          //motor.forward();
           //Serial.println("Slave: Sent data update.");
 
         }else if(finished == true){
@@ -786,3 +810,16 @@ void left_Pixel()
       timer = millis();
     }
   }
+
+void test()
+{
+  if(s1.getDistance() > 10)
+  {
+    //Serial.println(s1.getDistance());
+    motor.forward();
+  }
+  //Serial.println(s1.getDistance());
+  rotation.turnDegreesLeft(90);
+  
+
+}
